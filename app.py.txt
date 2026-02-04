@@ -1,0 +1,105 @@
+import streamlit as st
+import pandas as pd
+from geopy.distance import geodesic
+
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="Asesor Hub - La Carlota", layout="wide", page_icon="📈")
+
+# --- ESTILOS VISUALES ---
+st.markdown("""
+    <style>
+    .stApp { background-color: #f4f7f9; }
+    .main-card { background-color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    div[data-testid="stMetricValue"] { color: #1B263B; font-weight: bold; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- INICIALIZACIÓN DE DATOS ---
+if 'clientes' not in st.session_state:
+    st.session_state.clientes = []
+    
+# Coordenadas de referencia: La Carlota, Córdoba
+UBICACION_BASE = (-33.419, -63.298)
+
+# --- SEGURIDAD ---
+st.sidebar.title("🔐 Acceso Profesional")
+password = st.sidebar.text_input("Contraseña del Asesor", type="password")
+
+if password == "asesor2026":
+    # --- MENÚ DE NAVEGACIÓN ---
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "👥 Agenda Clientes", "🚜 Ofertas", "🎯 Match 48hs"])
+
+    # --- TAB 1: DASHBOARD ---
+    with tab1:
+        st.title("Indicadores Económicos Real-Time")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Dólar MEP", "$1.185,00", "-0.2%")
+        c2.metric("Soja Rosario", "USD 295,00", "+1.2%")
+        c3.metric("Índice ACARA", "+4.5%", "Mensual")
+        c4.metric("UVA", "$945,20", "Hoy")
+        
+        st.divider()
+        st.subheader("📰 Noticias de Relevancia")
+        st.info("📌 **Mercado Inmobiliario:** Alta demanda de campos agrícolas en el sur de Córdoba.")
+        st.warning("⚠️ **BCRA:** Nuevas tasas de referencia para créditos productivos PyME.")
+
+    # --- TAB 2: AGENDA (ARCA/ANSES) ---
+    with tab2:
+        st.header("Gestión de Clientes")
+        with st.expander("➕ Cargar Nuevo Cliente (Validación CUIT)"):
+            with st.form("nuevo_cliente"):
+                col_n, col_c = st.columns(2)
+                nombre = col_n.text_input("Nombre o Razón Social")
+                cuit = col_c.text_input("CUIT/CUIL (Sin guiones)")
+                iva = st.selectbox("Condición IVA", ["Responsable Inscripto", "Monotributista", "Exento", "PyME"])
+                actividad = st.text_input("Actividad (Según Padrón ARCA)")
+                if st.form_submit_button("Agendar Cliente"):
+                    st.session_state.clientes.append({"Nombre": nombre, "CUIT": cuit, "IVA": iva, "Actividad": actividad})
+                    st.success(f"Cliente {nombre} guardado exitosamente.")
+
+        if st.session_state.clientes:
+            st.subheader("Contactos Agendados")
+            st.dataframe(pd.DataFrame(st.session_state.clientes), use_container_width=True)
+
+    # --- TAB 3: OFERTAS (FILTRO 400KM) ---
+    with tab3:
+        st.header("Buscador de Propuestas Comerciales")
+        # Datos simulados de ofertas
+        ofertas = [
+            {"tipo": "Vehículo", "item": "Hilux 2022", "loc": (-33.12, -64.34), "ciudad": "Río Cuarto", "precio": "USD 35k"},
+            {"tipo": "Campo", "item": "120 Ha Agrícolas", "loc": (-33.42, -63.15), "ciudad": "La Carlota", "precio": "Consultar"},
+            {"tipo": "Maquinaria", "item": "Cosechadora JD", "loc": (-32.95, -60.64), "ciudad": "Rosario", "precio": "USD 120k"}
+        ]
+        
+        for o in ofertas:
+            dist = geodesic(UBICACION_BASE, o['loc']).km
+            with st.container():
+                st.write(f"### {o['item']} - {o['tipo']}")
+                st.write(f"📍 {o['ciudad']} | 💰 {o['precio']}")
+                if dist <= 400:
+                    st.success(f"✅ Dentro del radio de 400km (Distancia: {dist:.1f} km)")
+                else:
+                    st.warning(f"🌐 Oferta Nivel País (Distancia: {dist:.1f} km)")
+                st.divider()
+
+    # --- TAB 4: MATCHES (INTELIGENCIA) ---
+    with tab4:
+        st.header("Verificación de Necesidades")
+        if st.session_state.clientes:
+            c_sel = st.selectbox("Seleccionar Cliente para verificar", [c['Nombre'] for c in st.session_state.clientes])
+            tag = st.selectbox("¿Qué busca este cliente?", ["Camioneta", "Campo", "Crédito Inversión"])
+            
+            if st.button("Ejecutar Match 48hs"):
+                st.balloons()
+                st.subheader(f"Resultados para {c_sel}:")
+                if tag == "Camioneta":
+                    st.write("🟢 **Match:** Toyota Hilux 2022 en Río Cuarto coincide con el perfil.")
+                    st.button("Enviar Propuesta PDF por WhatsApp")
+                else:
+                    st.write("Buscando nuevas coincidencias en la base de datos...")
+        else:
+            st.write("Agende un cliente para activar el sistema de matching.")
+
+else:
+    st.image("https://img.icons8.com/clouds/200/lock-landscape.png")
+    st.info("Por favor, ingrese la contraseña en la barra lateral para acceder.")
